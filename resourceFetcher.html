@@ -1,0 +1,3062 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>JS Recon Dashboard v2</title>
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/js-beautify@1.15.1/js/lib/beautify.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+    <style>
+      :root {
+        --bg-deep: #020617;
+        --bg-dark: #0f172a;
+        --bg-card: #1e293b;
+        --bg-hover: #334155;
+        --accent-blue: #3b82f6;
+        --accent-cyan: #06b6d4;
+        --accent-green: #10b981;
+        --accent-yellow: #f59e0b;
+        --accent-red: #ef4444;
+        --accent-purple: #8b5cf6;
+        --accent-orange: #f97316;
+        --text-primary: #f1f5f9;
+        --text-secondary: #94a3b8;
+        --text-muted: #475569;
+        --border: #334155;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        background: var(--bg-deep);
+        color: var(--text-primary);
+        font-family: "Segoe UI", system-ui, sans-serif;
+        min-height: 100vh;
+      }
+      ::-webkit-scrollbar {
+        width: 6px;
+        height: 6px;
+      }
+      ::-webkit-scrollbar-track {
+        background: var(--bg-dark);
+      }
+      ::-webkit-scrollbar-thumb {
+        background: var(--bg-hover);
+        border-radius: 3px;
+      }
+      .navbar-brand {
+        font-size: 1.4rem;
+        font-weight: 700;
+        background: linear-gradient(
+          135deg,
+          var(--accent-blue),
+          var(--accent-cyan)
+        );
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+      }
+      .navbar {
+        background: var(--bg-dark) !important;
+        border-bottom: 1px solid var(--border);
+      }
+      .stat-card {
+        background: var(--bg-card);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 20px;
+        transition: all 0.3s ease;
+        cursor: pointer;
+      }
+      .stat-card:hover {
+        border-color: var(--accent-blue);
+        transform: translateY(-2px);
+      }
+      .stat-card .stat-value {
+        font-size: 2rem;
+        font-weight: 700;
+        line-height: 1;
+      }
+      .stat-card .stat-label {
+        color: var(--text-secondary);
+        font-size: 0.8rem;
+        margin-top: 4px;
+      }
+      .stat-card .stat-icon {
+        font-size: 1.8rem;
+        opacity: 0.7;
+      }
+      .panel {
+        background: var(--bg-card);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        overflow: hidden;
+      }
+      .panel-header {
+        background: var(--bg-dark);
+        padding: 14px 20px;
+        border-bottom: 1px solid var(--border);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        font-weight: 600;
+        font-size: 0.95rem;
+      }
+      .panel-body {
+        padding: 16px;
+      }
+      .script-row {
+        background: var(--bg-dark);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 12px 16px;
+        margin-bottom: 8px;
+        transition: all 0.2s;
+        cursor: pointer;
+      }
+      .script-row:hover {
+        border-color: var(--accent-blue);
+        background: var(--bg-hover);
+      }
+      .script-row.selected {
+        border-color: var(--accent-cyan);
+      }
+      .badge-type-external {
+        background: rgba(59, 130, 246, 0.2);
+        color: var(--accent-blue);
+        border: 1px solid var(--accent-blue);
+        font-size: 0.7rem;
+        padding: 2px 8px;
+        border-radius: 20px;
+      }
+      .badge-type-inline {
+        background: rgba(139, 92, 246, 0.2);
+        color: var(--accent-purple);
+        border: 1px solid var(--accent-purple);
+        font-size: 0.7rem;
+        padding: 2px 8px;
+        border-radius: 20px;
+      }
+      .badge-domain {
+        background: rgba(16, 185, 129, 0.15);
+        color: var(--accent-green);
+        border: 1px solid rgba(16, 185, 129, 0.3);
+        font-size: 0.7rem;
+        padding: 2px 8px;
+        border-radius: 20px;
+      }
+      .badge-warn {
+        background: rgba(245, 158, 11, 0.15);
+        color: var(--accent-yellow);
+        border: 1px solid rgba(245, 158, 11, 0.3);
+        font-size: 0.7rem;
+        padding: 2px 8px;
+        border-radius: 20px;
+      }
+      .badge-danger {
+        background: rgba(239, 68, 68, 0.15);
+        color: var(--accent-red);
+        border: 1px solid rgba(239, 68, 68, 0.3);
+        font-size: 0.7rem;
+        padding: 2px 8px;
+        border-radius: 20px;
+      }
+      .code-viewer {
+        background: var(--bg-deep);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 20px;
+        font-family: "Fira Code", "Cascadia Code", monospace;
+        font-size: 12px;
+        line-height: 1.7;
+        overflow-x: auto;
+        max-height: 500px;
+        overflow-y: auto;
+        white-space: pre-wrap;
+        word-break: break-all;
+      }
+      .secret-item {
+        background: rgba(239, 68, 68, 0.1);
+        border: 1px solid rgba(239, 68, 68, 0.3);
+        border-radius: 8px;
+        padding: 10px 14px;
+        margin-bottom: 8px;
+        font-family: monospace;
+        font-size: 0.82rem;
+      }
+      .secret-item .secret-type {
+        color: var(--accent-red);
+        font-weight: 600;
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        margin-bottom: 4px;
+      }
+      .secret-item .secret-value {
+        color: var(--accent-yellow);
+        word-break: break-all;
+      }
+      .endpoint-item {
+        background: rgba(6, 182, 212, 0.08);
+        border: 1px solid rgba(6, 182, 212, 0.25);
+        border-radius: 6px;
+        padding: 8px 12px;
+        margin-bottom: 6px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-family: monospace;
+        font-size: 0.82rem;
+      }
+      .method-badge {
+        font-size: 0.68rem;
+        font-weight: 700;
+        padding: 2px 7px;
+        border-radius: 4px;
+        min-width: 46px;
+        text-align: center;
+      }
+      .method-GET {
+        background: rgba(16, 185, 129, 0.2);
+        color: var(--accent-green);
+      }
+      .method-POST {
+        background: rgba(59, 130, 246, 0.2);
+        color: var(--accent-blue);
+      }
+      .method-PUT {
+        background: rgba(245, 158, 11, 0.2);
+        color: var(--accent-yellow);
+      }
+      .method-DELETE {
+        background: rgba(239, 68, 68, 0.2);
+        color: var(--accent-red);
+      }
+      .method-UNKNOWN {
+        background: rgba(148, 163, 184, 0.2);
+        color: var(--text-secondary);
+      }
+      .tab-nav {
+        border-bottom: 1px solid var(--border);
+        margin-bottom: 20px;
+      }
+      .tab-nav .nav-link {
+        color: var(--text-secondary);
+        border: none;
+        padding: 10px 18px;
+        font-size: 0.88rem;
+        border-bottom: 2px solid transparent;
+        background: none;
+        cursor: pointer;
+      }
+      .tab-nav .nav-link:hover {
+        color: var(--text-primary);
+      }
+      .tab-nav .nav-link.active {
+        color: var(--accent-cyan);
+        border-bottom: 2px solid var(--accent-cyan);
+      }
+      .form-control,
+      .form-select {
+        background: var(--bg-dark) !important;
+        border: 1px solid var(--border) !important;
+        color: var(--text-primary) !important;
+        border-radius: 8px;
+      }
+      .form-control:focus,
+      .form-select:focus {
+        border-color: var(--accent-blue) !important;
+        box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2) !important;
+      }
+      .form-control::placeholder {
+        color: var(--text-muted) !important;
+      }
+      .btn-primary-custom {
+        background: var(--accent-blue);
+        border: none;
+        color: white;
+        padding: 7px 16px;
+        border-radius: 7px;
+        font-size: 0.85rem;
+        cursor: pointer;
+        transition: all 0.2s;
+      }
+      .btn-primary-custom:hover {
+        background: #2563eb;
+        transform: translateY(-1px);
+      }
+      .btn-outline-custom {
+        background: transparent;
+        border: 1px solid var(--border);
+        color: var(--text-secondary);
+        padding: 7px 16px;
+        border-radius: 7px;
+        font-size: 0.85rem;
+        cursor: pointer;
+        transition: all 0.2s;
+      }
+      .btn-outline-custom:hover {
+        border-color: var(--accent-blue);
+        color: var(--accent-blue);
+      }
+      .btn-sm-icon {
+        background: var(--bg-hover);
+        border: 1px solid var(--border);
+        color: var(--text-secondary);
+        width: 30px;
+        height: 30px;
+        border-radius: 6px;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.78rem;
+        transition: all 0.2s;
+      }
+      .btn-sm-icon:hover {
+        border-color: var(--accent-cyan);
+        color: var(--accent-cyan);
+      }
+      #graphContainer {
+        background: var(--bg-deep);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        overflow: hidden;
+      }
+      #graphContainer svg {
+        width: 100%;
+      }
+      .node circle {
+        stroke-width: 2px;
+        cursor: pointer;
+      }
+      .node text {
+        font-size: 11px;
+        fill: var(--text-primary);
+      }
+      .link {
+        stroke-opacity: 0.5;
+      }
+      .progress-bar-custom {
+        height: 3px;
+        background: linear-gradient(
+          90deg,
+          var(--accent-blue),
+          var(--accent-cyan)
+        );
+        border-radius: 2px;
+        transition: width 0.3s;
+      }
+      .scan-progress {
+        display: none;
+        margin-bottom: 16px;
+      }
+      .scan-progress.active {
+        display: block;
+      }
+      .highlight-url {
+        color: var(--accent-cyan);
+      }
+      .highlight-secret {
+        color: var(--accent-red);
+        background: rgba(239, 68, 68, 0.1);
+        padding: 0 3px;
+        border-radius: 3px;
+      }
+      .highlight-storage {
+        color: var(--accent-yellow);
+      }
+      .highlight-cookie {
+        color: var(--accent-orange);
+      }
+      .highlight-token {
+        color: var(--accent-purple);
+      }
+      .highlight-http {
+        color: var(--accent-green);
+      }
+      .highlight-endpoint {
+        color: var(--accent-cyan);
+        font-weight: bold;
+      }
+      .empty-state {
+        text-align: center;
+        padding: 40px;
+        color: var(--text-muted);
+      }
+      .empty-state .icon {
+        font-size: 3rem;
+        margin-bottom: 10px;
+        opacity: 0.4;
+      }
+      .toast-container {
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        z-index: 9999;
+      }
+      .toast-msg {
+        background: var(--bg-card);
+        border: 1px solid var(--accent-green);
+        color: var(--accent-green);
+        padding: 10px 18px;
+        border-radius: 8px;
+        font-size: 0.85rem;
+        animation: fadeIn 0.2s ease;
+        margin-top: 8px;
+      }
+      @keyframes fadeIn {
+        from {
+          opacity: 0;
+          transform: translateY(10px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+      .resize-handle {
+        height: 5px;
+        background: var(--border);
+        cursor: ns-resize;
+        transition: background 0.2s;
+      }
+      .resize-handle:hover {
+        background: var(--accent-blue);
+      }
+      .dep-tree-item {
+        padding: 6px 10px;
+        border-left: 2px solid var(--border);
+        margin-left: 10px;
+        margin-bottom: 4px;
+        font-size: 0.82rem;
+        color: var(--text-secondary);
+      }
+      .dep-tree-item.root {
+        border-left-color: var(--accent-blue);
+        color: var(--text-primary);
+      }
+      .filter-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        background: rgba(59, 130, 246, 0.15);
+        border: 1px solid rgba(59, 130, 246, 0.3);
+        color: var(--accent-blue);
+        border-radius: 20px;
+        padding: 3px 10px;
+        font-size: 0.75rem;
+        cursor: pointer;
+        margin: 3px;
+        transition: all 0.2s;
+      }
+      .filter-chip:hover {
+        background: rgba(59, 130, 246, 0.3);
+      }
+      .filter-chip.active {
+        background: var(--accent-blue);
+        color: white;
+      }
+      .export-btn {
+        background: linear-gradient(135deg, var(--accent-green), #059669);
+        border: none;
+        color: white;
+        padding: 8px 18px;
+        border-radius: 8px;
+        font-size: 0.85rem;
+        cursor: pointer;
+        transition: all 0.2s;
+      }
+      .export-btn:hover {
+        opacity: 0.85;
+        transform: translateY(-1px);
+      }
+      .loading-spinner {
+        display: inline-block;
+        width: 14px;
+        height: 14px;
+        border: 2px solid var(--border);
+        border-top-color: var(--accent-blue);
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+        margin-right: 6px;
+      }
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+      .severity-critical {
+        color: var(--accent-red);
+      }
+      .severity-high {
+        color: var(--accent-orange);
+      }
+      .severity-medium {
+        color: var(--accent-yellow);
+      }
+      .severity-low {
+        color: var(--accent-green);
+      }
+      .sidebar {
+        background: var(--bg-dark);
+        border-right: 1px solid var(--border);
+        height: calc(100vh - 58px);
+        overflow-y: auto;
+        position: sticky;
+        top: 58px;
+      }
+      .sidebar-item {
+        padding: 10px 16px;
+        cursor: pointer;
+        border-left: 3px solid transparent;
+        font-size: 0.88rem;
+        color: var(--text-secondary);
+        transition: all 0.2s;
+      }
+      .sidebar-item:hover {
+        background: var(--bg-card);
+        color: var(--text-primary);
+      }
+      .sidebar-item.active {
+        border-left-color: var(--accent-cyan);
+        color: var(--accent-cyan);
+        background: rgba(6, 182, 212, 0.08);
+      }
+      .wsocket-item {
+        background: rgba(139, 92, 246, 0.08);
+        border: 1px solid rgba(139, 92, 246, 0.25);
+        border-radius: 6px;
+        padding: 8px 12px;
+        margin-bottom: 6px;
+        font-size: 0.82rem;
+        font-family: monospace;
+      }
+      .cors-item {
+        background: rgba(245, 158, 11, 0.08);
+        border: 1px solid rgba(245, 158, 11, 0.25);
+        border-radius: 6px;
+        padding: 8px 12px;
+        margin-bottom: 6px;
+        font-size: 0.82rem;
+      }
+      .subdomain-item {
+        background: rgba(16, 185, 129, 0.08);
+        border: 1px solid rgba(16, 185, 129, 0.25);
+        border-radius: 6px;
+        padding: 8px 12px;
+        margin-bottom: 6px;
+        font-size: 0.82rem;
+        font-family: monospace;
+      }
+    </style>
+  </head>
+  <body>
+    <nav class="navbar navbar-dark sticky-top">
+      <div class="container-fluid px-4">
+        <span class="navbar-brand">⚡ JS Recon Dashboard v2</span>
+        <div class="d-flex align-items-center gap-3">
+          <span id="targetUrl" class="text-muted small"></span>
+          <button class="btn-primary-custom" onclick="startScan()">
+            <span id="scanBtnText">🔍 Scan Page</span>
+          </button>
+          <button class="export-btn" onclick="exportResults()">
+            📤 Export
+          </button>
+        </div>
+      </div>
+    </nav>
+
+    <div class="container-fluid px-0">
+      <div class="row g-0">
+        <div class="col-auto sidebar d-none d-lg-block" style="width: 200px">
+          <div
+            style="
+              padding: 12px 16px;
+              font-size: 0.75rem;
+              color: var(--text-muted);
+              text-transform: uppercase;
+              letter-spacing: 1px;
+              margin-top: 8px;
+            "
+          >
+            Navigation
+          </div>
+          <div class="sidebar-item active" onclick="showSection('overview')">
+            📊 Overview
+          </div>
+          <div class="sidebar-item" onclick="showSection('scripts')">
+            📜 Scripts
+          </div>
+          <div class="sidebar-item" onclick="showSection('secrets')">
+            🔐 Secrets
+          </div>
+          <div class="sidebar-item" onclick="showSection('endpoints')">
+            🌐 Endpoints
+          </div>
+          <div class="sidebar-item" onclick="showSection('network')">
+            📡 Network
+          </div>
+          <div class="sidebar-item" onclick="showSection('subdomains')">
+            🔗 Subdomains
+          </div>
+          <div class="sidebar-item" onclick="showSection('graph')">
+            🕸 Call Graph
+          </div>
+          <div class="sidebar-item" onclick="showSection('deptree')">
+            🌲 Dep Tree
+          </div>
+          <div class="sidebar-item" onclick="showSection('cors')">
+            🛡 CORS / WS
+          </div>
+        </div>
+
+        <div
+          class="col"
+          style="min-height: calc(100vh - 58px); overflow-y: auto"
+        >
+          <div class="p-4">
+            <div class="scan-progress" id="scanProgress">
+              <div class="d-flex justify-content-between mb-1">
+                <small class="text-muted" id="scanStatus">Scanning...</small>
+                <small class="text-muted" id="scanPct">0%</small>
+              </div>
+              <div
+                style="
+                  background: var(--bg-card);
+                  border-radius: 4px;
+                  height: 4px;
+                "
+              >
+                <div
+                  class="progress-bar-custom"
+                  id="progressBar"
+                  style="width: 0%"
+                ></div>
+              </div>
+            </div>
+
+            <!-- OVERVIEW -->
+            <div id="section-overview">
+              <div class="row g-3 mb-4">
+                <div class="col-6 col-md-3">
+                  <div class="stat-card" onclick="showSection('scripts')">
+                    <div
+                      class="d-flex justify-content-between align-items-start"
+                    >
+                      <div>
+                        <div class="stat-value text-primary" id="statScripts">
+                          0
+                        </div>
+                        <div class="stat-label">Total Scripts</div>
+                      </div>
+                      <div class="stat-icon">📜</div>
+                    </div>
+                  </div>
+                </div>
+                <div class="col-6 col-md-3">
+                  <div class="stat-card" onclick="showSection('secrets')">
+                    <div
+                      class="d-flex justify-content-between align-items-start"
+                    >
+                      <div>
+                        <div class="stat-value text-danger" id="statSecrets">
+                          0
+                        </div>
+                        <div class="stat-label">Secrets Found</div>
+                      </div>
+                      <div class="stat-icon">🔐</div>
+                    </div>
+                  </div>
+                </div>
+                <div class="col-6 col-md-3">
+                  <div class="stat-card" onclick="showSection('endpoints')">
+                    <div
+                      class="d-flex justify-content-between align-items-start"
+                    >
+                      <div>
+                        <div class="stat-value text-info" id="statEndpoints">
+                          0
+                        </div>
+                        <div class="stat-label">Endpoints</div>
+                      </div>
+                      <div class="stat-icon">🌐</div>
+                    </div>
+                  </div>
+                </div>
+                <div class="col-6 col-md-3">
+                  <div class="stat-card" onclick="showSection('network')">
+                    <div
+                      class="d-flex justify-content-between align-items-start"
+                    >
+                      <div>
+                        <div class="stat-value text-warning" id="statNetwork">
+                          0
+                        </div>
+                        <div class="stat-label">Network Calls</div>
+                      </div>
+                      <div class="stat-icon">📡</div>
+                    </div>
+                  </div>
+                </div>
+                <div class="col-6 col-md-3">
+                  <div class="stat-card">
+                    <div
+                      class="d-flex justify-content-between align-items-start"
+                    >
+                      <div>
+                        <div
+                          class="stat-value"
+                          style="color: var(--accent-green)"
+                          id="statSubdomains"
+                        >
+                          0
+                        </div>
+                        <div class="stat-label">Subdomains</div>
+                      </div>
+                      <div class="stat-icon">🔗</div>
+                    </div>
+                  </div>
+                </div>
+                <div class="col-6 col-md-3">
+                  <div class="stat-card">
+                    <div
+                      class="d-flex justify-content-between align-items-start"
+                    >
+                      <div>
+                        <div
+                          class="stat-value"
+                          style="color: var(--accent-purple)"
+                          id="statWS"
+                        >
+                          0
+                        </div>
+                        <div class="stat-label">WebSockets</div>
+                      </div>
+                      <div class="stat-icon">🔌</div>
+                    </div>
+                  </div>
+                </div>
+                <div class="col-6 col-md-3">
+                  <div class="stat-card">
+                    <div
+                      class="d-flex justify-content-between align-items-start"
+                    >
+                      <div>
+                        <div
+                          class="stat-value"
+                          style="color: var(--accent-orange)"
+                          id="statCORS"
+                        >
+                          0
+                        </div>
+                        <div class="stat-label">CORS Issues</div>
+                      </div>
+                      <div class="stat-icon">🛡</div>
+                    </div>
+                  </div>
+                </div>
+                <div class="col-6 col-md-3">
+                  <div class="stat-card">
+                    <div
+                      class="d-flex justify-content-between align-items-start"
+                    >
+                      <div>
+                        <div
+                          class="stat-value"
+                          style="color: var(--accent-cyan)"
+                          id="statSize"
+                        >
+                          0KB
+                        </div>
+                        <div class="stat-label">Total JS Size</div>
+                      </div>
+                      <div class="stat-icon">📦</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="row g-3">
+                <div class="col-md-6">
+                  <div class="panel">
+                    <div class="panel-header">🚨 Risk Summary</div>
+                    <div class="panel-body" id="riskSummary">
+                      <div class="empty-state">
+                        <div class="icon">🔍</div>
+                        <div>Run a scan to see results</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div class="col-md-6">
+                  <div class="panel">
+                    <div class="panel-header">📊 Domain Breakdown</div>
+                    <div class="panel-body" id="domainBreakdown">
+                      <div class="empty-state">
+                        <div class="icon">🌐</div>
+                        <div>Run a scan to see domains</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- SCRIPTS -->
+            <div id="section-scripts" style="display: none">
+              <div
+                class="d-flex justify-content-between align-items-center mb-3"
+              >
+                <h5 class="mb-0">📜 Scripts</h5>
+                <div class="d-flex gap-2">
+                  <input
+                    class="form-control"
+                    style="width: 220px"
+                    placeholder="Search scripts..."
+                    id="scriptSearch"
+                    oninput="filterScripts()"
+                  />
+                  <select
+                    class="form-select"
+                    style="width: 130px"
+                    id="scriptTypeFilter"
+                    onchange="filterScripts()"
+                  >
+                    <option value="all">All Types</option>
+                    <option value="external">External</option>
+                    <option value="inline">Inline</option>
+                  </select>
+                </div>
+              </div>
+              <div id="filterChips" class="mb-3"></div>
+              <div id="scriptList"></div>
+              <div id="scriptViewer" style="display: none; margin-top: 16px">
+                <div class="panel">
+                  <div class="panel-header">
+                    <span id="viewerTitle">Script Viewer</span>
+                    <div class="d-flex gap-2">
+                      <button
+                        class="btn-sm-icon"
+                        onclick="copyViewerCode()"
+                        title="Copy"
+                      >
+                        📋
+                      </button>
+                      <button
+                        class="btn-sm-icon"
+                        onclick="downloadViewerCode()"
+                        title="Download"
+                      >
+                        ⬇
+                      </button>
+                      <button
+                        class="btn-sm-icon"
+                        onclick="closeViewer()"
+                        title="Close"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  </div>
+                  <div class="panel-body p-0">
+                    <div class="code-viewer" id="viewerCode"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- SECRETS -->
+            <div id="section-secrets" style="display: none">
+              <div
+                class="d-flex justify-content-between align-items-center mb-3"
+              >
+                <h5 class="mb-0">🔐 Secrets & Sensitive Data</h5>
+                <div class="d-flex gap-2">
+                  <input
+                    class="form-control"
+                    style="width: 220px"
+                    placeholder="Search secrets..."
+                    id="secretSearch"
+                    oninput="filterSecrets()"
+                  />
+                </div>
+              </div>
+              <div class="mb-3" id="secretFilterChips"></div>
+              <div id="secretList"></div>
+            </div>
+
+            <!-- ENDPOINTS -->
+            <div id="section-endpoints" style="display: none">
+              <div
+                class="d-flex justify-content-between align-items-center mb-3"
+              >
+                <h5 class="mb-0">🌐 Discovered Endpoints</h5>
+                <input
+                  class="form-control"
+                  style="width: 220px"
+                  placeholder="Filter endpoints..."
+                  id="endpointSearch"
+                  oninput="filterEndpoints()"
+                />
+              </div>
+              <div id="endpointList"></div>
+            </div>
+
+            <!-- NETWORK -->
+            <div id="section-network" style="display: none">
+              <h5 class="mb-3">📡 Network Calls</h5>
+              <div id="networkList"></div>
+            </div>
+
+            <!-- SUBDOMAINS -->
+            <div id="section-subdomains" style="display: none">
+              <h5 class="mb-3">🔗 Subdomain Leaks</h5>
+              <div id="subdomainList"></div>
+            </div>
+
+            <!-- GRAPH -->
+            <div id="section-graph" style="display: none">
+              <div
+                class="d-flex justify-content-between align-items-center mb-3"
+              >
+                <h5 class="mb-0">🕸 API Call Graph</h5>
+                <div class="d-flex gap-2">
+                  <button class="btn-outline-custom" onclick="resetGraph()">
+                    Reset View
+                  </button>
+                  <button
+                    class="btn-outline-custom"
+                    onclick="toggleGraphLayout()"
+                  >
+                    Toggle Layout
+                  </button>
+                </div>
+              </div>
+              <div id="graphContainer" style="height: 520px"></div>
+            </div>
+
+            <!-- DEPTREE -->
+            <div id="section-deptree" style="display: none">
+              <h5 class="mb-3">🌲 Script Dependency Tree</h5>
+              <div id="depTree"></div>
+            </div>
+
+            <!-- CORS / WS -->
+            <div id="section-cors" style="display: none">
+              <div class="row g-3">
+                <div class="col-md-6">
+                  <div class="panel">
+                    <div class="panel-header">🛡 CORS Indicators</div>
+                    <div class="panel-body" id="corsList"></div>
+                  </div>
+                </div>
+                <div class="col-md-6">
+                  <div class="panel">
+                    <div class="panel-header">🔌 WebSocket Connections</div>
+                    <div class="panel-body" id="wsList"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="toast-container" id="toastContainer"></div>
+    <script>
+      const state = {
+        scripts: [],
+        secrets: [],
+        endpoints: [],
+        networkCalls: [],
+        subdomains: [],
+        websockets: [],
+        corsIssues: [],
+        domains: {},
+        graphData: { nodes: [], links: [] },
+        currentViewer: null,
+        scanComplete: false,
+        totalSize: 0,
+      };
+
+      const SECRET_PATTERNS = [
+        {
+          name: "AWS Access Key",
+          regex: /AKIA[0-9A-Z]{16}/g,
+          severity: "critical",
+        },
+        {
+          name: "AWS Secret Key",
+          regex: /[a-zA-Z0-9/+=]{40}/g,
+          severity: "high",
+        },
+        {
+          name: "Firebase Key",
+          regex: /AIza[0-9A-Za-z\-_]{35}/g,
+          severity: "critical",
+        },
+        {
+          name: "Google OAuth",
+          regex: /[0-9]+-[0-9A-Za-z_]{32}\.apps\.googleusercontent\.com/g,
+          severity: "high",
+        },
+        {
+          name: "GitHub Token",
+          regex: /ghp_[a-zA-Z0-9]{36}/g,
+          severity: "critical",
+        },
+        {
+          name: "GitHub Fine-Grained",
+          regex: /github_pat_[a-zA-Z0-9_]{82}/g,
+          severity: "critical",
+        },
+        {
+          name: "Stripe Live Key",
+          regex: /sk_live_[0-9a-zA-Z]{24,}/g,
+          severity: "critical",
+        },
+        {
+          name: "Stripe Pub Key",
+          regex: /pk_live_[0-9a-zA-Z]{24,}/g,
+          severity: "medium",
+        },
+        {
+          name: "Stripe Test Key",
+          regex: /sk_test_[0-9a-zA-Z]{24,}/g,
+          severity: "low",
+        },
+        {
+          name: "JWT Token",
+          regex: /eyJ[A-Za-z0-9\-_=]+\.[A-Za-z0-9\-_=]+\.?[A-Za-z0-9\-_.+/=]*/g,
+          severity: "high",
+        },
+        {
+          name: "Bearer Token",
+          regex: /Bearer\s+[a-zA-Z0-9\-._~+/]+=*/g,
+          severity: "high",
+        },
+        {
+          name: "Private Key",
+          regex: /-----BEGIN [A-Z]+ PRIVATE KEY-----/g,
+          severity: "critical",
+        },
+        {
+          name: "API Key Generic",
+          regex: /api[_-]?key\s*[:=]\s*["']?([a-zA-Z0-9\-_]{16,})["']?/gi,
+          severity: "high",
+        },
+        {
+          name: "Client Secret",
+          regex: /client[_-]?secret\s*[:=]\s*["']?([a-zA-Z0-9\-_]{16,})["']?/gi,
+          severity: "critical",
+        },
+        {
+          name: "Password Field",
+          regex: /password\s*[:=]\s*["']([^"']{6,})["']/gi,
+          severity: "high",
+        },
+        {
+          name: "Auth Token",
+          regex: /auth[_-]?token\s*[:=]\s*["']?([a-zA-Z0-9\-_]{16,})["']?/gi,
+          severity: "high",
+        },
+        {
+          name: "Slack Token",
+          regex: /xox[baprs]-[0-9a-zA-Z\-]{10,}/g,
+          severity: "critical",
+        },
+        { name: "Twilio Key", regex: /SK[0-9a-fA-F]{32}/g, severity: "high" },
+        {
+          name: "SendGrid Key",
+          regex: /SG\.[a-zA-Z0-9\-_]{22}\.[a-zA-Z0-9\-_]{43}/g,
+          severity: "critical",
+        },
+        {
+          name: "Mailchimp Key",
+          regex: /[0-9a-f]{32}-us[0-9]{1,2}/g,
+          severity: "high",
+        },
+        {
+          name: "Heroku Key",
+          regex:
+            /[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}/g,
+          severity: "medium",
+        },
+        {
+          name: "SSH Key",
+          regex: /ssh-rsa\s+AAAA[0-9A-Za-z+/]+/g,
+          severity: "critical",
+        },
+        {
+          name: "Telegram Bot Token",
+          regex: /[0-9]{8,10}:[a-zA-Z0-9_-]{35}/g,
+          severity: "high",
+        },
+        { name: "NPM Token", regex: /npm_[a-zA-Z0-9]{36}/g, severity: "high" },
+      ];
+
+      const ENDPOINT_PATTERNS = [
+        {
+          regex: /["'`](\/api\/[a-zA-Z0-9\-_/{}?=&.]+)["'`]/g,
+          method: "UNKNOWN",
+        },
+        {
+          regex: /["'`](\/v[0-9]+\/[a-zA-Z0-9\-_/{}?=&.]+)["'`]/g,
+          method: "UNKNOWN",
+        },
+        {
+          regex: /["'`](\/graphql[a-zA-Z0-9\-_/?=&.]*)["'`]/g,
+          method: "UNKNOWN",
+        },
+        {
+          regex: /["'`](\/auth\/[a-zA-Z0-9\-_/{}?=&.]+)["'`]/g,
+          method: "UNKNOWN",
+        },
+        {
+          regex: /["'`](\/login[a-zA-Z0-9\-_/?=&.]*)["'`]/g,
+          method: "UNKNOWN",
+        },
+        {
+          regex: /["'`](\/logout[a-zA-Z0-9\-_/?=&.]*)["'`]/g,
+          method: "UNKNOWN",
+        },
+        {
+          regex: /["'`](\/register[a-zA-Z0-9\-_/?=&.]*)["'`]/g,
+          method: "UNKNOWN",
+        },
+        {
+          regex: /["'`](\/users?\/[a-zA-Z0-9\-_/{}?=&.]*)["'`]/g,
+          method: "UNKNOWN",
+        },
+        {
+          regex: /["'`](\/admin\/[a-zA-Z0-9\-_/{}?=&.]+)["'`]/g,
+          method: "UNKNOWN",
+        },
+        { regex: /fetch\s*\(\s*["'`]([^"'`]+)["'`]/g, method: "GET" },
+        { regex: /axios\.get\s*\(\s*["'`]([^"'`]+)["'`]/g, method: "GET" },
+        { regex: /axios\.post\s*\(\s*["'`]([^"'`]+)["'`]/g, method: "POST" },
+        { regex: /axios\.put\s*\(\s*["'`]([^"'`]+)["'`]/g, method: "PUT" },
+        {
+          regex: /axios\.delete\s*\(\s*["'`]([^"'`]+)["'`]/g,
+          method: "DELETE",
+        },
+        {
+          regex: /\.get\s*\(\s*["'`](\/[a-zA-Z0-9\-_/{}?=&.]+)["'`]/g,
+          method: "GET",
+        },
+        {
+          regex: /\.post\s*\(\s*["'`](\/[a-zA-Z0-9\-_/{}?=&.]+)["'`]/g,
+          method: "POST",
+        },
+      ];
+
+      const NETWORK_PATTERNS = [
+        { name: "fetch()", regex: /\bfetch\s*\(/g, type: "fetch" },
+        {
+          name: "XMLHttpRequest",
+          regex: /new\s+XMLHttpRequest\s*\(/g,
+          type: "xhr",
+        },
+        { name: "axios", regex: /\baxios\s*[\.(]/g, type: "axios" },
+        {
+          name: "GraphQL",
+          regex: /\bgraphql\b|gql\s*`|query\s*\{|mutation\s*\{/g,
+          type: "graphql",
+        },
+        {
+          name: "WebSocket",
+          regex: /new\s+WebSocket\s*\(/g,
+          type: "websocket",
+        },
+        { name: "EventSource", regex: /new\s+EventSource\s*\(/g, type: "sse" },
+        {
+          name: "navigator.sendBeacon",
+          regex: /navigator\.sendBeacon\s*\(/g,
+          type: "beacon",
+        },
+      ];
+
+      function getDomain(url) {
+        try {
+          return new URL(url).hostname;
+        } catch {
+          return "inline";
+        }
+      }
+
+      function getSize(str) {
+        return new Blob([str]).size;
+      }
+
+      function formatSize(bytes) {
+        if (bytes < 1024) return bytes + " B";
+        if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + " KB";
+        return (bytes / (1024 * 1024)).toFixed(2) + " MB";
+      }
+
+      function escHTML(s) {
+        return String(s)
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;");
+      }
+
+      function toast(msg, type = "success") {
+        const c = document.getElementById("toastContainer");
+        const t = document.createElement("div");
+        t.className = "toast-msg";
+        t.style.borderColor =
+          type === "success"
+            ? "var(--accent-green)"
+            : type === "error"
+              ? "var(--accent-red)"
+              : "var(--accent-blue)";
+        t.style.color =
+          type === "success"
+            ? "var(--accent-green)"
+            : type === "error"
+              ? "var(--accent-red)"
+              : "var(--accent-blue)";
+        t.textContent = msg;
+        c.appendChild(t);
+        setTimeout(() => t.remove(), 3000);
+      }
+
+      function showSection(name) {
+        document
+          .querySelectorAll('[id^="section-"]')
+          .forEach((el) => (el.style.display = "none"));
+        document
+          .querySelectorAll(".sidebar-item")
+          .forEach((el) => el.classList.remove("active"));
+        const target = document.getElementById("section-" + name);
+        if (target) target.style.display = "";
+        document.querySelectorAll(".sidebar-item").forEach((el) => {
+          if (
+            el.getAttribute("onclick") &&
+            el.getAttribute("onclick").includes(name)
+          ) {
+            el.classList.add("active");
+          }
+        });
+        if (name === "graph" && state.scanComplete) renderGraph();
+      }
+
+      function updateProgress(pct, status) {
+        document.getElementById("progressBar").style.width = pct + "%";
+        document.getElementById("scanPct").textContent = pct + "%";
+        document.getElementById("scanStatus").textContent = status;
+      }
+
+      async function startScan() {
+        const btn = document.getElementById("scanBtnText");
+        btn.innerHTML = '<span class="loading-spinner"></span>Scanning...';
+        document.getElementById("scanProgress").classList.add("active");
+        document.getElementById("targetUrl").textContent =
+          window.location.hostname || "localhost";
+
+        state.scripts = [];
+        state.secrets = [];
+        state.endpoints = [];
+        state.networkCalls = [];
+        state.subdomains = [];
+        state.websockets = [];
+        state.corsIssues = [];
+        state.domains = {};
+        state.graphData = { nodes: [], links: [] };
+        state.totalSize = 0;
+
+        updateProgress(10, "Collecting scripts...");
+        await sleep(100);
+
+        const rawScripts = [...document.scripts];
+        updateProgress(20, "Fetching script contents...");
+
+        for (let i = 0; i < rawScripts.length; i++) {
+          const s = rawScripts[i];
+          let code = s.textContent || "";
+          let fetchError = false;
+
+          if (s.src) {
+            try {
+              const r = await fetch(s.src);
+              code = await r.text();
+            } catch (e) {
+              fetchError = true;
+              code = "";
+            }
+          }
+
+          const domain = s.src ? getDomain(s.src) : "inline";
+          const sz = getSize(code);
+          state.totalSize += sz;
+
+          if (!state.domains[domain]) state.domains[domain] = 0;
+          state.domains[domain]++;
+
+          state.scripts.push({
+            index: i,
+            src: s.src || null,
+            domain,
+            type: s.src ? "external" : "inline",
+            code,
+            size: sz,
+            fetchError,
+            async: s.async,
+            defer: s.defer,
+          });
+
+          updateProgress(
+            20 + Math.floor((i / rawScripts.length) * 30),
+            `Processing script ${i + 1}/${rawScripts.length}...`,
+          );
+          await sleep(10);
+        }
+
+        updateProgress(50, "Scanning for secrets...");
+        await sleep(50);
+        scanSecrets();
+
+        updateProgress(65, "Extracting endpoints...");
+        await sleep(50);
+        scanEndpoints();
+
+        updateProgress(75, "Detecting network calls...");
+        await sleep(50);
+        scanNetworkCalls();
+
+        updateProgress(82, "Finding subdomains...");
+        await sleep(50);
+        scanSubdomains();
+
+        updateProgress(88, "Checking WebSockets & CORS...");
+        await sleep(50);
+        scanWebSocketsAndCORS();
+
+        updateProgress(94, "Building call graph...");
+        await sleep(50);
+        buildGraphData();
+
+        updateProgress(100, "Done!");
+        state.scanComplete = true;
+
+        setTimeout(() => {
+          document.getElementById("scanProgress").classList.remove("active");
+        }, 800);
+
+        btn.textContent = "🔍 Scan Page";
+        renderAll();
+        toast("Scan complete! " + state.scripts.length + " scripts analysed.");
+      }
+
+      function sleep(ms) {
+        return new Promise((r) => setTimeout(r, ms));
+      }
+
+      function scanSecrets() {
+        state.secrets = [];
+        state.scripts.forEach((script) => {
+          if (!script.code) return;
+          SECRET_PATTERNS.forEach((pat) => {
+            const matches = [
+              ...script.code.matchAll(
+                new RegExp(pat.regex.source, pat.regex.flags),
+              ),
+            ];
+            matches.forEach((m) => {
+              const val = m[0];
+              if (val.length < 8) return;
+              state.secrets.push({
+                type: pat.name,
+                severity: pat.severity,
+                value: val,
+                scriptSrc: script.src || "Inline #" + script.index,
+                domain: script.domain,
+                context: getContext(script.code, m.index),
+              });
+            });
+          });
+        });
+        state.secrets = dedupSecrets(state.secrets);
+      }
+
+      function dedupSecrets(arr) {
+        const seen = new Set();
+        return arr.filter((s) => {
+          const key = s.type + "|" + s.value.substring(0, 30);
+          if (seen.has(key)) return false;
+          seen.add(key);
+          return true;
+        });
+      }
+
+      function getContext(code, index) {
+        const start = Math.max(0, index - 40);
+        const end = Math.min(code.length, index + 80);
+        return code.substring(start, end).replace(/\n/g, " ");
+      }
+
+      function scanEndpoints() {
+        state.endpoints = [];
+        const seen = new Set();
+        state.scripts.forEach((script) => {
+          if (!script.code) return;
+          ENDPOINT_PATTERNS.forEach((pat) => {
+            const matches = [
+              ...script.code.matchAll(
+                new RegExp(pat.regex.source, pat.regex.flags),
+              ),
+            ];
+            matches.forEach((m) => {
+              const ep = m[1] || m[0];
+              if (!ep || ep.length < 3 || seen.has(ep)) return;
+              if (ep.length > 200) return;
+              seen.add(ep);
+              state.endpoints.push({
+                path: ep,
+                method: detectMethod(script.code, m.index, pat.method),
+                scriptSrc: script.src || "Inline #" + script.index,
+                domain: script.domain,
+              });
+            });
+          });
+        });
+      }
+
+      function detectMethod(code, index, defaultMethod) {
+        const before = code
+          .substring(Math.max(0, index - 30), index)
+          .toLowerCase();
+        if (
+          before.includes(".post(") ||
+          before.includes("method:'post'") ||
+          before.includes('method:"post"')
+        )
+          return "POST";
+        if (before.includes(".put(")) return "PUT";
+        if (before.includes(".delete(") || before.includes(".del("))
+          return "DELETE";
+        if (before.includes(".patch(")) return "PATCH";
+        if (before.includes(".get(") || before.includes("fetch(")) return "GET";
+        return defaultMethod;
+      }
+
+      function scanNetworkCalls() {
+        state.networkCalls = [];
+        state.scripts.forEach((script) => {
+          if (!script.code) return;
+          NETWORK_PATTERNS.forEach((pat) => {
+            const count = (
+              script.code.match(
+                new RegExp(pat.regex.source, pat.regex.flags),
+              ) || []
+            ).length;
+            if (count > 0) {
+              state.networkCalls.push({
+                name: pat.name,
+                type: pat.type,
+                count,
+                scriptSrc: script.src || "Inline #" + script.index,
+                domain: script.domain,
+              });
+            }
+          });
+        });
+      }
+
+      function scanSubdomains() {
+        state.subdomains = [];
+        const seen = new Set();
+        const currentHost = window.location.hostname;
+        const parts = currentHost.split(".");
+        const baseDomain =
+          parts.length >= 2 ? parts.slice(-2).join(".") : currentHost;
+        const subReg = new RegExp(
+          `([a-zA-Z0-9\\-]+\\.${baseDomain.replace(".", "\\.")})`,
+          "g",
+        );
+
+        state.scripts.forEach((script) => {
+          if (!script.code) return;
+          const matches = [...script.code.matchAll(subReg)];
+          matches.forEach((m) => {
+            const sub = m[1];
+            if (!seen.has(sub) && sub !== currentHost) {
+              seen.add(sub);
+              state.subdomains.push({
+                subdomain: sub,
+                scriptSrc: script.src || "Inline #" + script.index,
+              });
+            }
+          });
+        });
+
+        const urlReg = /https?:\/\/([a-zA-Z0-9\-_.]+\.[a-zA-Z]{2,})/g;
+        state.scripts.forEach((script) => {
+          if (!script.code) return;
+          const matches = [...script.code.matchAll(urlReg)];
+          matches.forEach((m) => {
+            const host = m[1];
+            if (!seen.has(host) && host !== currentHost && host.includes(".")) {
+              seen.add(host);
+              state.subdomains.push({
+                subdomain: host,
+                scriptSrc: script.src || "Inline #" + script.index,
+              });
+            }
+          });
+        });
+      }
+
+      function scanWebSocketsAndCORS() {
+        state.websockets = [];
+        state.corsIssues = [];
+        const wsReg = /new\s+WebSocket\s*\(\s*["'`]([^"'`]+)["'`]/g;
+        const corsReg =
+          /Access-Control-Allow-Origin|cors\s*[:=]\s*["']?\*|withCredentials\s*[:=]\s*true/g;
+        const credReg = /withCredentials\s*[:=]\s*true/g;
+
+        state.scripts.forEach((script) => {
+          if (!script.code) return;
+          const wsMatches = [...script.code.matchAll(wsReg)];
+          wsMatches.forEach((m) => {
+            state.websockets.push({
+              url: m[1],
+              scriptSrc: script.src || "Inline #" + script.index,
+            });
+          });
+          const corsMatches = script.code.match(corsReg);
+          if (corsMatches) {
+            const hasWildcard = /cors\s*[:=]\s*["']?\*/g.test(script.code);
+            const hasCredentials = credReg.test(script.code);
+            state.corsIssues.push({
+              issue: hasWildcard
+                ? "Wildcard CORS"
+                : "CORS configuration detected",
+              severity:
+                hasWildcard && hasCredentials
+                  ? "critical"
+                  : hasWildcard
+                    ? "high"
+                    : "medium",
+              scriptSrc: script.src || "Inline #" + script.index,
+              details: corsMatches.join(", "),
+            });
+          }
+        });
+      }
+
+      function buildGraphData() {
+        const nodes = [];
+        const links = [];
+        const nodeMap = {};
+
+        function addNode(id, label, type) {
+          if (!nodeMap[id]) {
+            nodeMap[id] = nodes.length;
+            nodes.push({ id, label, type });
+          }
+          return nodeMap[id];
+        }
+
+        state.scripts.forEach((script) => {
+          const scriptId = script.src || "inline_" + script.index;
+          addNode(
+            scriptId,
+            script.src ? script.domain : "Inline " + script.index,
+            "script",
+          );
+        });
+
+        state.endpoints.forEach((ep) => {
+          const epId = ep.path;
+          addNode(epId, ep.path, "endpoint");
+          const scriptId =
+            ep.scriptSrc.startsWith("/") || ep.scriptSrc.startsWith("http")
+              ? ep.scriptSrc
+              : "inline_" + ep.scriptSrc.split("#")[1];
+          if (nodeMap[scriptId] !== undefined && nodeMap[epId] !== undefined) {
+            links.push({ source: scriptId, target: epId, method: ep.method });
+          }
+        });
+
+        state.graphData = { nodes, links };
+      }
+    </script>
+    <script>
+      const state = {
+        scripts: [],
+        secrets: [],
+        endpoints: [],
+        network: [],
+        subdomains: [],
+        websockets: [],
+        cors: [],
+        domains: {},
+        allCode: "",
+        scanComplete: false,
+        currentViewerCode: "",
+        graphLayout: "force",
+        activeSection: "overview",
+      };
+
+      const SECRET_PATTERNS = [
+        {
+          name: "AWS Access Key",
+          regex: /AKIA[0-9A-Z]{16}/g,
+          severity: "critical",
+        },
+        {
+          name: "AWS Secret Key",
+          regex:
+            /(?:aws_secret|AWS_SECRET)[^\S\r\n]*[=:][^\S\r\n]*['"]?([A-Za-z0-9\/+=]{40})/gi,
+          severity: "critical",
+        },
+        {
+          name: "Firebase API Key",
+          regex: /AIza[0-9A-Za-z\-_]{35}/g,
+          severity: "high",
+        },
+        {
+          name: "Google API Key",
+          regex: /AIza[0-9A-Za-z\-_]{35}/g,
+          severity: "high",
+        },
+        {
+          name: "JWT Token",
+          regex: /eyJ[A-Za-z0-9\-_]+\.eyJ[A-Za-z0-9\-_]+\.[A-Za-z0-9\-_.+/]*/g,
+          severity: "high",
+        },
+        {
+          name: "Bearer Token",
+          regex: /Bearer\s+[A-Za-z0-9\-._~+/]+=*/g,
+          severity: "high",
+        },
+        {
+          name: "Private Key",
+          regex: /-----BEGIN (?:RSA |EC )?PRIVATE KEY-----/g,
+          severity: "critical",
+        },
+        {
+          name: "Slack Token",
+          regex: /xox[baprs]-[0-9A-Za-z]{10,48}/g,
+          severity: "high",
+        },
+        {
+          name: "GitHub Token",
+          regex: /gh[pousr]_[A-Za-z0-9_]{36,255}/g,
+          severity: "high",
+        },
+        {
+          name: "Stripe Key",
+          regex: /(?:sk|pk)_(?:live|test)_[A-Za-z0-9]{24,}/g,
+          severity: "critical",
+        },
+        { name: "Twilio SID", regex: /AC[a-f0-9]{32}/g, severity: "medium" },
+        {
+          name: "SendGrid Key",
+          regex: /SG\.[a-zA-Z0-9_-]{22}\.[a-zA-Z0-9_-]{43}/g,
+          severity: "high",
+        },
+        {
+          name: "API Key Generic",
+          regex:
+            /(?:api[_-]?key|apikey|api_secret)[^\S\r\n]*[=:][^\S\r\n]*['"]?([A-Za-z0-9_\-]{20,})/gi,
+          severity: "medium",
+        },
+        {
+          name: "Password",
+          regex:
+            /(?:password|passwd|pwd)[^\S\r\n]*[=:][^\S\r\n]*['"]([^'"]{6,})['"]/gi,
+          severity: "high",
+        },
+        {
+          name: "Client Secret",
+          regex:
+            /(?:client_secret|clientSecret)[^\S\r\n]*[=:][^\S\r\n]*['"]?([A-Za-z0-9_\-]{10,})/gi,
+          severity: "high",
+        },
+        {
+          name: "Mailchimp Key",
+          regex: /[a-f0-9]{32}-us[0-9]{1,2}/g,
+          severity: "medium",
+        },
+        {
+          name: "Heroku API Key",
+          regex:
+            /[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}/g,
+          severity: "medium",
+        },
+        {
+          name: "MongoDB URI",
+          regex: /mongodb(?:\+srv)?:\/\/[^\s"'`]+/gi,
+          severity: "critical",
+        },
+        {
+          name: "MySQL URI",
+          regex: /mysql:\/\/[^\s"'`]+/gi,
+          severity: "critical",
+        },
+        {
+          name: "Postgres URI",
+          regex: /postgres(?:ql)?:\/\/[^\s"'`]+/gi,
+          severity: "critical",
+        },
+      ];
+
+      const ENDPOINT_PATTERNS = [
+        /['"`](\/api\/[^\s'"`,)]+)/g,
+        /['"`](\/v[0-9]+\/[^\s'"`,)]+)/g,
+        /['"`](\/graphql[^\s'"`,)]*)/g,
+        /['"`](\/auth\/[^\s'"`,)]+)/g,
+        /['"`](\/login[^\s'"`,)]*)/g,
+        /['"`](\/logout[^\s'"`,)]*)/g,
+        /['"`](\/register[^\s'"`,)]*)/g,
+        /['"`](\/user[s]?\/[^\s'"`,)]+)/g,
+        /['"`](\/admin\/[^\s'"`,)]+)/g,
+        /['"`](\/oauth[^\s'"`,)]*)/g,
+        /['"`](\/token[^\s'"`,)]*)/g,
+        /['"`](\/upload[^\s'"`,)]*)/g,
+        /['"`](\/search[^\s'"`,)]*)/g,
+        /['"`](\/webhook[^\s'"`,)]*)/g,
+        /['"`](\/callback[^\s'"`,)]*)/g,
+      ];
+
+      const NETWORK_PATTERNS = [
+        { type: "fetch", regex: /fetch\s*\(\s*['"`]([^'"`,)]+)/g },
+        { type: "axios.get", regex: /axios\.get\s*\(\s*['"`]([^'"`,)]+)/g },
+        { type: "axios.post", regex: /axios\.post\s*\(\s*['"`]([^'"`,)]+)/g },
+        { type: "axios.put", regex: /axios\.put\s*\(\s*['"`]([^'"`,)]+)/g },
+        {
+          type: "axios.delete",
+          regex: /axios\.delete\s*\(\s*['"`]([^'"`,)]+)/g,
+        },
+        {
+          type: "XMLHttpRequest",
+          regex:
+            /\.open\s*\(\s*['"`](GET|POST|PUT|DELETE)['"`]\s*,\s*['"`]([^'"`,)]+)/g,
+        },
+        {
+          type: "WebSocket",
+          regex: /new\s+WebSocket\s*\(\s*['"`]([^'"`,)]+)/g,
+        },
+        { type: "graphql", regex: /query\s*:\s*['"`]([^'"`,)]{10,})/g },
+      ];
+
+      const CORS_PATTERNS = [
+        /Access-Control-Allow-Origin/gi,
+        /withCredentials\s*:\s*true/gi,
+        /credentials\s*:\s*['"]include['"]/gi,
+        /mode\s*:\s*['"]cors['"]/gi,
+        /cors\s*\(/gi,
+      ];
+
+      function getDomain(url) {
+        try {
+          return new URL(url).hostname;
+        } catch {
+          return "inline";
+        }
+      }
+
+      function getSize(str) {
+        return (new Blob([str]).size / 1024).toFixed(1);
+      }
+
+      function escapeHTML(s) {
+        return String(s)
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;");
+      }
+
+      function showToast(msg, type = "success") {
+        const c = document.getElementById("toastContainer");
+        const t = document.createElement("div");
+        t.className = "toast-msg";
+        t.style.borderColor =
+          type === "success"
+            ? "var(--accent-green)"
+            : type === "error"
+              ? "var(--accent-red)"
+              : "var(--accent-blue)";
+        t.style.color =
+          type === "success"
+            ? "var(--accent-green)"
+            : type === "error"
+              ? "var(--accent-red)"
+              : "var(--accent-blue)";
+        t.textContent = msg;
+        c.appendChild(t);
+        setTimeout(() => t.remove(), 3000);
+      }
+
+      function showSection(name) {
+        document
+          .querySelectorAll('[id^="section-"]')
+          .forEach((el) => (el.style.display = "none"));
+        document.getElementById("section-" + name).style.display = "block";
+        document
+          .querySelectorAll(".sidebar-item")
+          .forEach((el) => el.classList.remove("active"));
+        document.querySelectorAll(".sidebar-item").forEach((el) => {
+          if (el.textContent.toLowerCase().includes(name.toLowerCase()))
+            el.classList.add("active");
+        });
+        state.activeSection = name;
+        if (name === "graph" && state.scanComplete) renderGraph();
+      }
+
+      function setProgress(pct, status) {
+        document.getElementById("progressBar").style.width = pct + "%";
+        document.getElementById("scanPct").textContent = pct + "%";
+        document.getElementById("scanStatus").textContent = status;
+      }
+
+      async function startScan() {
+        const btn = document.getElementById("scanBtnText");
+        btn.innerHTML = '<span class="loading-spinner"></span>Scanning...';
+        document.getElementById("scanProgress").classList.add("active");
+        document.getElementById("targetUrl").textContent =
+          window.location.hostname;
+
+        state.scripts = [];
+        state.secrets = [];
+        state.endpoints = [];
+        state.network = [];
+        state.subdomains = [];
+        state.websockets = [];
+        state.cors = [];
+        state.domains = {};
+        state.allCode = "";
+
+        setProgress(5, "Collecting scripts...");
+        await sleep(100);
+
+        const scripts = [...document.scripts];
+        let totalSize = 0;
+
+        for (let i = 0; i < scripts.length; i++) {
+          const s = scripts[i];
+          let code = "";
+          let src = s.src || "";
+          let type = src ? "external" : "inline";
+          let domain = src ? getDomain(src) : "inline";
+
+          try {
+            if (src) {
+              const r = await fetch(src);
+              code = await r.text();
+            } else {
+              code = s.textContent || "";
+            }
+          } catch (e) {
+            code = s.textContent || "";
+          }
+
+          const sz = parseFloat(getSize(code));
+          totalSize += sz;
+          state.allCode += "\n" + code;
+
+          const scriptObj = { index: i, src, type, domain, code, size: sz };
+          state.scripts.push(scriptObj);
+
+          if (!state.domains[domain]) state.domains[domain] = [];
+          state.domains[domain].push(scriptObj);
+
+          setProgress(
+            5 + Math.round((i / scripts.length) * 40),
+            `Scanning script ${i + 1}/${scripts.length}...`,
+          );
+          await sleep(10);
+        }
+
+        setProgress(50, "Extracting secrets...");
+        await sleep(100);
+        extractSecrets();
+
+        setProgress(65, "Discovering endpoints...");
+        await sleep(100);
+        extractEndpoints();
+
+        setProgress(75, "Analyzing network calls...");
+        await sleep(100);
+        extractNetwork();
+
+        setProgress(85, "Finding subdomains...");
+        await sleep(100);
+        extractSubdomains();
+
+        setProgress(92, "Checking CORS & WebSockets...");
+        await sleep(100);
+        extractCORSandWS();
+
+        setProgress(100, "Scan complete!");
+        await sleep(300);
+
+        document.getElementById("scanProgress").classList.remove("active");
+        btn.textContent = "🔄 Re-scan";
+        state.scanComplete = true;
+
+        document.getElementById("statScripts").textContent =
+          state.scripts.length;
+        document.getElementById("statSecrets").textContent =
+          state.secrets.length;
+        document.getElementById("statEndpoints").textContent =
+          state.endpoints.length;
+        document.getElementById("statNetwork").textContent =
+          state.network.length;
+        document.getElementById("statSubdomains").textContent =
+          state.subdomains.length;
+        document.getElementById("statWS").textContent = state.websockets.length;
+        document.getElementById("statCORS").textContent = state.cors.length;
+        document.getElementById("statSize").textContent =
+          totalSize.toFixed(1) + "KB";
+
+        renderOverview();
+        renderScripts();
+        renderSecrets();
+        renderEndpoints();
+        renderNetwork();
+        renderSubdomains();
+        renderDepTree();
+        renderCORSandWS();
+        showToast(
+          "✅ Scan complete! Found " +
+            state.secrets.length +
+            " secrets, " +
+            state.endpoints.length +
+            " endpoints.",
+        );
+      }
+
+      function sleep(ms) {
+        return new Promise((r) => setTimeout(r, ms));
+      }
+
+      function extractSecrets() {
+        state.secrets = [];
+        const seen = new Set();
+        state.scripts.forEach((script) => {
+          SECRET_PATTERNS.forEach((pattern) => {
+            const regex = new RegExp(pattern.regex.source, pattern.regex.flags);
+            let match;
+            while ((match = regex.exec(script.code)) !== null) {
+              const val = match[0];
+              const key = pattern.name + ":" + val;
+              if (!seen.has(key) && val.length < 500) {
+                seen.add(key);
+                state.secrets.push({
+                  type: pattern.name,
+                  value: val,
+                  severity: pattern.severity,
+                  scriptSrc: script.src || "inline",
+                  scriptIndex: script.index,
+                  context: script.code.substring(
+                    Math.max(0, match.index - 40),
+                    match.index + val.length + 40,
+                  ),
+                });
+              }
+            }
+          });
+        });
+      }
+
+      function extractEndpoints() {
+        state.endpoints = [];
+        const seen = new Set();
+        state.scripts.forEach((script) => {
+          ENDPOINT_PATTERNS.forEach((pattern) => {
+            const regex = new RegExp(pattern.source, pattern.flags);
+            let match;
+            while ((match = regex.exec(script.code)) !== null) {
+              const ep = match[1];
+              if (ep && !seen.has(ep) && ep.length < 200) {
+                seen.add(ep);
+                let method = "UNKNOWN";
+                const ctx = script.code.substring(
+                  Math.max(0, match.index - 60),
+                  match.index + 60,
+                );
+                if (/\.get\s*\(|method.*get/i.test(ctx)) method = "GET";
+                else if (/\.post\s*\(|method.*post/i.test(ctx)) method = "POST";
+                else if (/\.put\s*\(|method.*put/i.test(ctx)) method = "PUT";
+                else if (/\.delete\s*\(|method.*delete/i.test(ctx))
+                  method = "DELETE";
+                state.endpoints.push({
+                  path: ep,
+                  method,
+                  scriptSrc: script.src || "inline",
+                });
+              }
+            }
+          });
+        });
+      }
+
+      function extractNetwork() {
+        state.network = [];
+        const seen = new Set();
+        state.scripts.forEach((script) => {
+          NETWORK_PATTERNS.forEach((p) => {
+            const regex = new RegExp(p.regex.source, p.regex.flags);
+            let match;
+            while ((match = regex.exec(script.code)) !== null) {
+              if (p.type === "WebSocket") {
+                const url = match[1];
+                if (url && !seen.has("ws:" + url)) {
+                  seen.add("ws:" + url);
+                  state.websockets.push({
+                    url,
+                    scriptSrc: script.src || "inline",
+                  });
+                }
+              } else {
+                const url = match[1] || match[2];
+                if (url && !seen.has(p.type + ":" + url)) {
+                  seen.add(p.type + ":" + url);
+                  state.network.push({
+                    type: p.type,
+                    url,
+                    scriptSrc: script.src || "inline",
+                  });
+                }
+              }
+            }
+          });
+        });
+      }
+
+      function extractSubdomains() {
+        state.subdomains = [];
+        const seen = new Set();
+        const baseDomain = window.location.hostname
+          .split(".")
+          .slice(-2)
+          .join(".");
+        const regex = new RegExp(
+          `([a-zA-Z0-9]([a-zA-Z0-9\\-]{0,61}[a-zA-Z0-9])?\\.${baseDomain.replace(".", "\\.")})`,
+          "g",
+        );
+        let match;
+        while ((match = regex.exec(state.allCode)) !== null) {
+          const sub = match[1];
+          if (
+            !seen.has(sub) &&
+            sub !== baseDomain &&
+            sub !== window.location.hostname
+          ) {
+            seen.add(sub);
+            state.subdomains.push(sub);
+          }
+        }
+      }
+
+      function extractCORSandWS() {
+        state.cors = [];
+        const seen = new Set();
+        state.scripts.forEach((script) => {
+          CORS_PATTERNS.forEach((p) => {
+            const regex = new RegExp(p.source, p.flags);
+            let match;
+            while ((match = regex.exec(script.code)) !== null) {
+              const val = script.code
+                .substring(
+                  Math.max(0, match.index - 20),
+                  match.index + match[0].length + 20,
+                )
+                .trim();
+              if (!seen.has(val)) {
+                seen.add(val);
+                state.cors.push({
+                  pattern: match[0],
+                  context: val,
+                  scriptSrc: script.src || "inline",
+                });
+              }
+            }
+          });
+        });
+      }
+
+      function highlightCode(code) {
+        let html = escapeHTML(code);
+        const patterns = [
+          { regex: /(https?:\/\/[^\s"'`<>&]+)/g, cls: "highlight-url" },
+          {
+            regex: /\b(localStorage|sessionStorage|indexedDB)\b/g,
+            cls: "highlight-storage",
+          },
+          { regex: /\b(document\.cookie|cookie)\b/g, cls: "highlight-cookie" },
+          {
+            regex: /\b(Authorization|Bearer|jwt|token)\b/gi,
+            cls: "highlight-token",
+          },
+          { regex: /\b(fetch|axios|XMLHttpRequest)\b/g, cls: "highlight-http" },
+          {
+            regex:
+              /(\/api\/[^\s"'`<>]+|\/v\d+\/[^\s"'`<>]+|\/graphql[^\s"'`<>]*)/g,
+            cls: "highlight-endpoint",
+          },
+        ];
+        patterns.forEach((p) => {
+          html = html.replace(
+            new RegExp(p.regex.source, p.regex.flags),
+            (m) => `<span class="${p.cls}">${m}</span>`,
+          );
+        });
+        return html;
+      }
+
+      function renderOverview() {
+        const risk = document.getElementById("riskSummary");
+        const criticals = state.secrets.filter(
+          (s) => s.severity === "critical",
+        ).length;
+        const highs = state.secrets.filter((s) => s.severity === "high").length;
+        const externals = state.scripts.filter(
+          (s) => s.type === "external",
+        ).length;
+        risk.innerHTML = `
+    <div class="d-flex flex-column gap-2">
+      ${
+        criticals > 0
+          ? `<div class="d-flex justify-content-between align-items-center p-2" style="background:rgba(239,68,68,0.1);border-radius:6px">
+        <span>🔴 Critical Secrets</span><span class="severity-critical fw-bold">${criticals}</span></div>`
+          : ""
+      }
+      ${
+        highs > 0
+          ? `<div class="d-flex justify-content-between align-items-center p-2" style="background:rgba(249,115,22,0.1);border-radius:6px">
+        <span>🟠 High Severity</span><span class="severity-high fw-bold">${highs}</span></div>`
+          : ""
+      }
+      <div class="d-flex justify-content-between align-items-center p-2" style="background:rgba(59,130,246,0.1);border-radius:6px">
+        <span>🔵 External Scripts</span><span style="color:var(--accent-blue)" class="fw-bold">${externals}</span></div>
+      <div class="d-flex justify-content-between align-items-center p-2" style="background:rgba(6,182,212,0.1);border-radius:6px">
+        <span>🔵 Endpoints Found</span><span style="color:var(--accent-cyan)" class="fw-bold">${state.endpoints.length}</span></div>
+      ${
+        state.cors.length > 0
+          ? `<div class="d-flex justify-content-between align-items-center p-2" style="background:rgba(245,158,11,0.1);border-radius:6px">
+        <span>⚠️ CORS Indicators</span><span class="severity-medium fw-bold">${state.cors.length}</span></div>`
+          : ""
+      }
+      ${criticals === 0 && highs === 0 ? `<div class="text-center py-2" style="color:var(--accent-green)">✅ No critical issues found</div>` : ""}
+    </div>`;
+
+        const db = document.getElementById("domainBreakdown");
+        const domainEntries = Object.entries(state.domains).sort(
+          (a, b) => b[1].length - a[1].length,
+        );
+        if (domainEntries.length === 0) {
+          db.innerHTML =
+            '<div class="empty-state"><div class="icon">🌐</div><div>No domains found</div></div>';
+          return;
+        }
+        const maxCount = Math.max(...domainEntries.map((d) => d[1].length));
+        db.innerHTML = domainEntries
+          .map(
+            ([domain, scripts]) => `
+    <div class="mb-3">
+      <div class="d-flex justify-content-between mb-1">
+        <span class="small">${escapeHTML(domain)}</span>
+        <span class="small text-muted">${scripts.length} script${scripts.length > 1 ? "s" : ""}</span>
+      </div>
+      <div style="background:var(--bg-dark);border-radius:4px;height:6px;">
+        <div style="width:${((scripts.length / maxCount) * 100).toFixed(0)}%;height:100%;background:linear-gradient(90deg,var(--accent-blue),var(--accent-cyan));border-radius:4px;"></div>
+      </div>
+    </div>`,
+          )
+          .join("");
+      }
+
+      function renderScripts() {
+        const container = document.getElementById("scriptList");
+        if (state.scripts.length === 0) {
+          container.innerHTML =
+            '<div class="empty-state"><div class="icon">📜</div><div>No scripts found</div></div>';
+          return;
+        }
+        container.innerHTML = state.scripts
+          .map((s, i) => {
+            const warnings = countScriptWarnings(s);
+            return `
+    <div class="script-row" id="script-row-${i}" onclick="viewScript(${i})">
+      <div class="d-flex justify-content-between align-items-center">
+        <div class="d-flex align-items-center gap-2 flex-wrap">
+          <span class="text-muted small">#${i + 1}</span>
+          <span class="badge-type-${s.type}">${s.type}</span>
+          <span class="badge-domain">${escapeHTML(s.domain)}</span>
+          ${warnings > 0 ? `<span class="badge-warn">⚠ ${warnings} flags</span>` : ""}
+          <span class="text-muted small">${s.size} KB</span>
+        </div>
+        <div class="d-flex gap-2">
+          <button class="btn-sm-icon" onclick="event.stopPropagation();copyScript(${i})" title="Copy">📋</button>
+          <button class="btn-sm-icon" onclick="event.stopPropagation();downloadScript(${i})" title="Download">⬇</button>
+        </div>
+      </div>
+      <div class="mt-1 small text-muted text-truncate" style="max-width:100%">${s.src ? escapeHTML(s.src) : "[inline script " + i + "]"}</div>
+    </div>`;
+          })
+          .join("");
+      }
+
+      function countScriptWarnings(s) {
+        let count = 0;
+        SECRET_PATTERNS.forEach((p) => {
+          const regex = new RegExp(p.regex.source, p.regex.flags);
+          if (regex.test(s.code)) count++;
+        });
+        return count;
+      }
+
+      function filterScripts() {
+        const query = document
+          .getElementById("scriptSearch")
+          .value.toLowerCase();
+        const typeFilter = document.getElementById("scriptTypeFilter").value;
+        document.querySelectorAll('[id^="script-row-"]').forEach((row, i) => {
+          const s = state.scripts[i];
+          const matchesQuery =
+            !query ||
+            (s.src || "").toLowerCase().includes(query) ||
+            s.domain.toLowerCase().includes(query);
+          const matchesType = typeFilter === "all" || s.type === typeFilter;
+          row.style.display = matchesQuery && matchesType ? "" : "none";
+        });
+      }
+
+      function viewScript(index) {
+        const s = state.scripts[index];
+        document.getElementById("viewerTitle").textContent = s.src
+          ? s.src.split("/").pop()
+          : "Inline Script #" + index;
+        let formatted = s.code;
+        try {
+          if (typeof js_beautify !== "undefined")
+            formatted = js_beautify(s.code, { indent_size: 2 });
+        } catch (e) {}
+        state.currentViewerCode = formatted;
+        document.getElementById("viewerCode").innerHTML =
+          highlightCode(formatted);
+        document.getElementById("scriptViewer").style.display = "block";
+        document
+          .querySelectorAll(".script-row")
+          .forEach((r) => r.classList.remove("selected"));
+        const row = document.getElementById("script-row-" + index);
+        if (row) {
+          row.classList.add("selected");
+          row.scrollIntoView({ behavior: "smooth", block: "nearest" });
+        }
+        document
+          .getElementById("scriptViewer")
+          .scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+
+      function closeViewer() {
+        document.getElementById("scriptViewer").style.display = "none";
+      }
+
+      function copyViewerCode() {
+        navigator.clipboard
+          .writeText(state.currentViewerCode)
+          .then(() => showToast("📋 Copied to clipboard!"));
+      }
+
+      function downloadViewerCode() {
+        const blob = new Blob([state.currentViewerCode], {
+          type: "text/javascript",
+        });
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(blob);
+        a.download = "script.js";
+        a.click();
+        showToast("⬇ Download started!");
+      }
+
+      function copyScript(index) {
+        navigator.clipboard
+          .writeText(state.scripts[index].code)
+          .then(() => showToast("📋 Copied!"));
+      }
+
+      function downloadScript(index) {
+        const s = state.scripts[index];
+        const blob = new Blob([s.code], { type: "text/javascript" });
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(blob);
+        a.download = s.src ? s.src.split("/").pop() : "inline-" + index + ".js";
+        a.click();
+      }
+
+      function renderSecrets() {
+        const container = document.getElementById("secretList");
+        const chips = document.getElementById("secretFilterChips");
+        if (state.secrets.length === 0) {
+          container.innerHTML =
+            '<div class="empty-state"><div class="icon">🔐</div><div>No secrets found — good news!</div></div>';
+          chips.innerHTML = "";
+          return;
+        }
+        const types = [...new Set(state.secrets.map((s) => s.type))];
+        chips.innerHTML = types
+          .map(
+            (t) =>
+              `<span class="filter-chip active" onclick="toggleSecretFilter(this,'${t}')">${t} <span class="text-muted">${state.secrets.filter((s) => s.type === t).length}</span></span>`,
+          )
+          .join("");
+        renderSecretList();
+      }
+
+      function renderSecretList() {
+        const container = document.getElementById("secretList");
+        const activeFilters = [
+          ...document.querySelectorAll(
+            "#secretFilterChips .filter-chip.active",
+          ),
+        ].map((c) => c.textContent.trim().split(" ")[0]);
+        const filtered = state.secrets.filter(
+          (s) =>
+            activeFilters.length === 0 ||
+            activeFilters.some((f) => s.type.includes(f)),
+        );
+        if (filtered.length === 0) {
+          container.innerHTML =
+            '<div class="empty-state"><div class="icon">🔐</div><div>No secrets match filters</div></div>';
+          return;
+        }
+        container.innerHTML = filtered
+          .map(
+            (s, i) => `
+    <div class="secret-item">
+      <div class="d-flex justify-content-between align-items-start">
+        <div class="secret-type">${escapeHTML(s.type)} <span class="severity-${s.severity}">[${s.severity}]</span></div>
+        <button class="btn-sm-icon" onclick="navigator.clipboard.writeText('${escapeHTML(s.value)}').then(()=>showToast('Copied!'))" title="Copy">📋</button>
+      </div>
+      <div class="secret-value">${escapeHTML(s.value.substring(0, 120))}${s.value.length > 120 ? "..." : ""}</div>
+      <div class="mt-1" style="font-size:0.75rem;color:var(--text-muted)">Found in: ${escapeHTML(s.scriptSrc.split("/").pop() || "inline")}</div>
+      <div class="mt-1 p-1" style="background:rgba(0,0,0,0.3);border-radius:4px;font-size:0.75rem;color:var(--text-muted);font-family:monospace">...${escapeHTML(s.context.substring(0, 100))}...</div>
+    </div>`,
+          )
+          .join("");
+      }
+
+      function toggleSecretFilter(el, type) {
+        el.classList.toggle("active");
+        renderSecretList();
+      }
+
+      function filterSecrets() {
+        const q = document.getElementById("secretSearch").value.toLowerCase();
+        document.querySelectorAll(".secret-item").forEach((item) => {
+          item.style.display =
+            !q || item.textContent.toLowerCase().includes(q) ? "" : "none";
+        });
+      }
+
+      function renderEndpoints() {
+        const container = document.getElementById("endpointList");
+        if (state.endpoints.length === 0) {
+          container.innerHTML =
+            '<div class="empty-state"><div class="icon">🌐</div><div>No endpoints discovered</div></div>';
+          return;
+        }
+        container.innerHTML = state.endpoints
+          .map(
+            (ep) => `
+    <div class="endpoint-item">
+      <span class="method-badge method-${ep.method}">${ep.method}</span>
+      <span style="color:var(--accent-cyan);flex:1">${escapeHTML(ep.path)}</span>
+      <span class="text-muted small">${escapeHTML(ep.scriptSrc.split("/").pop() || "inline")}</span>
+      <button class="btn-sm-icon" onclick="navigator.clipboard.writeText('${escapeHTML(ep.path)}').then(()=>showToast('Copied!'))" title="Copy">📋</button>
+    </div>`,
+          )
+          .join("");
+      }
+
+      function filterEndpoints() {
+        const q = document.getElementById("endpointSearch").value.toLowerCase();
+        document.querySelectorAll(".endpoint-item").forEach((item) => {
+          item.style.display =
+            !q || item.textContent.toLowerCase().includes(q) ? "" : "none";
+        });
+      }
+
+      function renderNetwork() {
+        const container = document.getElementById("networkList");
+        if (state.network.length === 0) {
+          container.innerHTML =
+            '<div class="empty-state"><div class="icon">📡</div><div>No network calls detected</div></div>';
+          return;
+        }
+        const groups = {};
+        state.network.forEach((n) => {
+          if (!groups[n.type]) groups[n.type] = [];
+          groups[n.type].push(n);
+        });
+        container.innerHTML = Object.entries(groups)
+          .map(
+            ([type, calls]) => `
+    <div class="panel mb-3">
+      <div class="panel-header">${type} <span class="badge-domain ms-2">${calls.length}</span></div>
+      <div class="panel-body">
+        ${calls
+          .map(
+            (c) => `
+          <div class="endpoint-item">
+            <span class="method-badge method-UNKNOWN">${type.split(".")[0].toUpperCase().substring(0, 4)}</span>
+            <span style="color:var(--text-primary);flex:1;word-break:break-all">${escapeHTML(c.url)}</span>
+            <button class="btn-sm-icon" onclick="navigator.clipboard.writeText('${escapeHTML(c.url)}').then(()=>showToast('Copied!'))" title="Copy">📋</button>
+          </div>`,
+          )
+          .join("")}
+      </div>
+    </div>`,
+          )
+          .join("");
+      }
+
+      function renderSubdomains() {
+        const container = document.getElementById("subdomainList");
+        if (state.subdomains.length === 0) {
+          container.innerHTML =
+            '<div class="empty-state"><div class="icon">🔗</div><div>No subdomains found</div></div>';
+          return;
+        }
+        container.innerHTML = state.subdomains
+          .map(
+            (sub) => `
+    <div class="subdomain-item d-flex justify-content-between align-items-center">
+      <span>${escapeHTML(sub)}</span>
+      <button class="btn-sm-icon" onclick="navigator.clipboard.writeText('${escapeHTML(sub)}').then(()=>showToast('Copied!'))" title="Copy">📋</button>
+    </div>`,
+          )
+          .join("");
+      }
+      function renderDepTree() {
+        const container = document.getElementById("depTree");
+        if (state.scripts.length === 0) {
+          container.innerHTML =
+            '<div class="empty-state"><div class="icon">🌲</div><div>No scripts to analyze</div></div>';
+          return;
+        }
+        const domainGroups = {};
+        state.scripts.forEach((s) => {
+          const d = s.domain;
+          if (!domainGroups[d]) domainGroups[d] = [];
+          domainGroups[d].push(s);
+        });
+        container.innerHTML = Object.entries(domainGroups)
+          .map(
+            ([domain, scripts]) => `
+    <div class="panel mb-3">
+      <div class="panel-header">
+        <span>📦 ${escapeHTML(domain)}</span>
+        <span class="badge-domain">${scripts.length} scripts</span>
+      </div>
+      <div class="panel-body">
+        <div class="dep-tree-item root">🌐 ${escapeHTML(domain)}</div>
+        ${scripts
+          .map(
+            (s, i) => `
+          <div class="dep-tree-item" style="margin-left:${20 + (i % 3) * 10}px">
+            <span style="color:var(--accent-cyan)">↳</span>
+            <span class="ms-1">${s.src ? escapeHTML(s.src.split("/").pop()) : "inline-" + s.index}</span>
+            <span class="ms-2 text-muted small">${s.size} KB</span>
+            ${s.type === "external" ? `<span class="badge-type-external ms-2">ext</span>` : `<span class="badge-type-inline ms-2">inline</span>`}
+          </div>`,
+          )
+          .join("")}
+      </div>
+    </div>`,
+          )
+          .join("");
+      }
+
+      function renderCORSandWS() {
+        const corsContainer = document.getElementById("corsList");
+        const wsContainer = document.getElementById("wsList");
+
+        if (state.cors.length === 0) {
+          corsContainer.innerHTML =
+            '<div class="empty-state"><div class="icon">🛡</div><div>No CORS indicators found</div></div>';
+        } else {
+          corsContainer.innerHTML = state.cors
+            .map(
+              (c) => `
+      <div class="cors-item">
+        <div style="color:var(--accent-yellow);font-weight:600;font-size:0.78rem;margin-bottom:4px">${escapeHTML(c.pattern)}</div>
+        <div style="font-family:monospace;font-size:0.78rem;color:var(--text-secondary)">${escapeHTML(c.context.substring(0, 120))}</div>
+        <div class="mt-1" style="font-size:0.72rem;color:var(--text-muted)">in: ${escapeHTML(c.scriptSrc.split("/").pop() || "inline")}</div>
+      </div>`,
+            )
+            .join("");
+        }
+
+        if (state.websockets.length === 0) {
+          wsContainer.innerHTML =
+            '<div class="empty-state"><div class="icon">🔌</div><div>No WebSocket connections found</div></div>';
+        } else {
+          wsContainer.innerHTML = state.websockets
+            .map(
+              (ws) => `
+      <div class="wsocket-item">
+        <div style="color:var(--accent-purple);font-weight:600;font-size:0.78rem;margin-bottom:4px">🔌 WebSocket</div>
+        <div>${escapeHTML(ws.url)}</div>
+        <div class="mt-1" style="font-size:0.72rem;color:var(--text-muted)">in: ${escapeHTML(ws.scriptSrc.split("/").pop() || "inline")}</div>
+      </div>`,
+            )
+            .join("");
+        }
+      }
+
+      function renderGraph() {
+        const container = document.getElementById("graphContainer");
+        container.innerHTML = "";
+        if (!state.scanComplete || state.endpoints.length === 0) {
+          container.innerHTML =
+            '<div class="empty-state" style="padding:80px"><div class="icon">🕸</div><div>Run a scan first to see the call graph</div></div>';
+          return;
+        }
+
+        const width = container.clientWidth || 800;
+        const height = 520;
+
+        const nodes = [];
+        const links = [];
+        const nodeMap = {};
+
+        const rootId = "root:" + window.location.hostname;
+        nodes.push({
+          id: rootId,
+          label: window.location.hostname,
+          type: "root",
+          r: 18,
+        });
+        nodeMap[rootId] = true;
+
+        state.scripts.forEach((s) => {
+          const id = "script:" + (s.src || "inline-" + s.index);
+          if (!nodeMap[id]) {
+            nodes.push({
+              id,
+              label: s.src
+                ? s.src.split("/").pop().substring(0, 20)
+                : "inline-" + s.index,
+              type: "script",
+              r: 12,
+            });
+            nodeMap[id] = true;
+          }
+          links.push({ source: rootId, target: id });
+        });
+
+        state.endpoints.forEach((ep) => {
+          const id = "ep:" + ep.path;
+          if (!nodeMap[id]) {
+            nodes.push({
+              id,
+              label: ep.path.substring(0, 25),
+              type: "endpoint",
+              method: ep.method,
+              r: 9,
+            });
+            nodeMap[id] = true;
+          }
+          const scriptId = "script:" + ep.scriptSrc;
+          if (nodeMap[scriptId]) {
+            links.push({ source: scriptId, target: id });
+          } else {
+            links.push({ source: rootId, target: id });
+          }
+        });
+
+        const svg = d3
+          .select(container)
+          .append("svg")
+          .attr("width", width)
+          .attr("height", height)
+          .style("background", "var(--bg-deep)");
+
+        const defs = svg.append("defs");
+        const grad = defs.append("radialGradient").attr("id", "rootGrad");
+        grad.append("stop").attr("offset", "0%").attr("stop-color", "#3b82f6");
+        grad
+          .append("stop")
+          .attr("offset", "100%")
+          .attr("stop-color", "#1d4ed8");
+
+        const zoom = d3
+          .zoom()
+          .scaleExtent([0.3, 3])
+          .on("zoom", (e) => g.attr("transform", e.transform));
+        svg.call(zoom);
+
+        const g = svg.append("g");
+
+        const simulation = d3
+          .forceSimulation(nodes)
+          .force(
+            "link",
+            d3
+              .forceLink(links)
+              .id((d) => d.id)
+              .distance(90)
+              .strength(0.6),
+          )
+          .force("charge", d3.forceManyBody().strength(-220))
+          .force("center", d3.forceCenter(width / 2, height / 2))
+          .force(
+            "collision",
+            d3.forceCollide().radius((d) => d.r + 10),
+          );
+
+        const colorMap = {
+          root: "#3b82f6",
+          script: "#8b5cf6",
+          endpoint: {
+            GET: "#10b981",
+            POST: "#3b82f6",
+            PUT: "#f59e0b",
+            DELETE: "#ef4444",
+            UNKNOWN: "#94a3b8",
+          },
+        };
+
+        const link = g
+          .append("g")
+          .selectAll("line")
+          .data(links)
+          .enter()
+          .append("line")
+          .attr("class", "link")
+          .attr("stroke", "#334155")
+          .attr("stroke-width", 1.2);
+
+        const node = g
+          .append("g")
+          .selectAll("g")
+          .data(nodes)
+          .enter()
+          .append("g")
+          .attr("class", "node")
+          .call(
+            d3
+              .drag()
+              .on("start", (e, d) => {
+                if (!e.active) simulation.alphaTarget(0.3).restart();
+                d.fx = d.x;
+                d.fy = d.y;
+              })
+              .on("drag", (e, d) => {
+                d.fx = e.x;
+                d.fy = e.y;
+              })
+              .on("end", (e, d) => {
+                if (!e.active) simulation.alphaTarget(0);
+                d.fx = null;
+                d.fy = null;
+              }),
+          );
+
+        node
+          .append("circle")
+          .attr("r", (d) => d.r)
+          .attr("fill", (d) => {
+            if (d.type === "root") return "url(#rootGrad)";
+            if (d.type === "script") return colorMap.script;
+            return colorMap.endpoint[d.method] || colorMap.endpoint.UNKNOWN;
+          })
+          .attr("stroke", (d) =>
+            d.type === "root" ? "#60a5fa" : "rgba(255,255,255,0.15)",
+          )
+          .attr("stroke-width", (d) => (d.type === "root" ? 2.5 : 1));
+
+        node
+          .append("text")
+          .attr("dy", (d) => d.r + 12)
+          .attr("text-anchor", "middle")
+          .attr("fill", "#94a3b8")
+          .attr("font-size", 9)
+          .text((d) => d.label);
+
+        node.append("title").text((d) => d.id.replace(/^[^:]+:/, ""));
+
+        simulation.on("tick", () => {
+          link
+            .attr("x1", (d) => d.source.x)
+            .attr("y1", (d) => d.source.y)
+            .attr("x2", (d) => d.target.x)
+            .attr("y2", (d) => d.target.y);
+          node.attr("transform", (d) => `translate(${d.x},${d.y})`);
+        });
+
+        const legend = svg.append("g").attr("transform", "translate(16,16)");
+        const legendData = [
+          { label: "Root", color: "#3b82f6" },
+          { label: "Script", color: "#8b5cf6" },
+          { label: "GET", color: "#10b981" },
+          { label: "POST", color: "#3b82f6" },
+          { label: "PUT", color: "#f59e0b" },
+          { label: "DELETE", color: "#ef4444" },
+        ];
+        legendData.forEach((ld, i) => {
+          const lg = legend
+            .append("g")
+            .attr("transform", `translate(0,${i * 20})`);
+          lg.append("circle").attr("r", 5).attr("fill", ld.color);
+          lg.append("text")
+            .attr("x", 12)
+            .attr("dy", "0.35em")
+            .attr("fill", "#94a3b8")
+            .attr("font-size", 10)
+            .text(ld.label);
+        });
+      }
+
+      function resetGraph() {
+        renderGraph();
+      }
+
+      function toggleGraphLayout() {
+        state.graphLayout = state.graphLayout === "force" ? "radial" : "force";
+        renderGraph();
+      }
+
+      function exportResults() {
+        const report = {
+          target: window.location.href,
+          scanDate: new Date().toISOString(),
+          summary: {
+            totalScripts: state.scripts.length,
+            secrets: state.secrets.length,
+            endpoints: state.endpoints.length,
+            networkCalls: state.network.length,
+            subdomains: state.subdomains.length,
+            websockets: state.websockets.length,
+            corsIndicators: state.cors.length,
+          },
+          scripts: state.scripts.map((s) => ({
+            index: s.index,
+            type: s.type,
+            src: s.src,
+            domain: s.domain,
+            sizeKB: s.size,
+          })),
+          secrets: state.secrets.map((s) => ({
+            type: s.type,
+            severity: s.severity,
+            value: s.value,
+            scriptSrc: s.scriptSrc,
+          })),
+          endpoints: state.endpoints,
+          networkCalls: state.network,
+          subdomains: state.subdomains,
+          websockets: state.websockets,
+          corsIndicators: state.cors,
+        };
+
+        const blob = new Blob([JSON.stringify(report, null, 2)], {
+          type: "application/json",
+        });
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(blob);
+        a.download =
+          "recon-report-" + new Date().toISOString().split("T")[0] + ".json";
+        a.click();
+        showToast("📤 Report exported!");
+      }
+
+      document.addEventListener("DOMContentLoaded", () => {
+        document.getElementById("targetUrl").textContent =
+          window.location.hostname || "localhost";
+      });
+    </script>
+  </body>
+</html>
+// === MESSAGE 5: FINAL SECTION — Auto-scan demo data + bookmarklet generator
+=== // Patch into DOMContentLoaded to auto-load demo if no real scripts found
+document.addEventListener('DOMContentLoaded', () => { const demoBtn =
+document.createElement('button'); demoBtn.className = 'btn-outline-custom ms-2';
+demoBtn.textContent = '🎭 Load Demo'; demoBtn.onclick = loadDemoData;
+document.querySelector('.navbar .d-flex').appendChild(demoBtn); const
+bookmarkBtn = document.createElement('button'); bookmarkBtn.className =
+'btn-outline-custom ms-2'; bookmarkBtn.textContent = '🔖 Bookmarklet';
+bookmarkBtn.onclick = showBookmarklet; document.querySelector('.navbar
+.d-flex').appendChild(bookmarkBtn); }); function loadDemoData() { state.scripts
+= [ { index: 0, src: 'https://cdn.example.com/app.min.js', type: 'external',
+domain: 'cdn.example.com', size: 142.3, code:
+`fetch('/api/v1/users',{headers:{Authorization:'Bearer
+eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ1c2VyMTIzIn0.abc123'}}); const
+API_KEY='AIzaSyD-example1234567890abcdefghijk';
+localStorage.setItem('token','jwt-token-here');
+axios.post('/api/auth/login',{credentials:'include'}); new
+WebSocket('wss://ws.example.com/live'); const
+STRIPE_KEY='pk_live_abcdefghijklmnopqrstuvwx';` }, { index: 1, src:
+'https://cdn.example.com/vendor.js', type: 'external', domain:
+'cdn.example.com', size: 87.6, code: `axios.get('/api/v2/products');
+axios.get('/api/v2/orders'); fetch('/graphql',{method:'POST'});
+document.cookie='session=abc123'; const AWS_KEY='AKIAIOSFODNN7EXAMPLE';` }, {
+index: 2, src: 'https://analytics.tracker.io/track.js', type: 'external',
+domain: 'analytics.tracker.io', size: 23.1, code:
+`fetch('https://analytics.tracker.io/collect',{method:'POST',mode:'cors',credentials:'include'});
+const
+SENDGRID='SG.abcdefghijk1234567890.ABCDEFGHIJKLMNOPQRSTUVWXYZ12345678901234';`
+}, { index: 3, src: '', type: 'inline', domain: 'inline', size: 4.2, code:
+`window.__CONFIG__={apiBase:'/api/v1',wsUrl:'wss://socket.example.com',clientSecret:'super_secret_client_key_here_12345'};
+fetch('/api/v1/config');fetch('/auth/token');` }, { index: 4, src:
+'https://cdn.stripe.com/v3/', type: 'external', domain: 'cdn.stripe.com', size:
+56.8, code: `Stripe('pk_live_51Htest1234567890abcdefghijk');
+fetch('/api/payment/intent',{method:'POST'});
+fetch('/api/payment/confirm',{method:'POST'});` }, { index: 5, src:
+'https://sub.example.com/utils.js', type: 'external', domain: 'sub.example.com',
+size: 11.4, code: `const
+MONGO='mongodb+srv://admin:password123@cluster.example.mongodb.net/mydb';
+fetch('/api/admin/users');fetch('/api/admin/logs');
+XMLHttpRequest.open('GET','/api/v1/reports');` } ]; state.secrets = [ { type:
+'Firebase API Key', value: 'AIzaSyD-example1234567890abcdefghijk', severity:
+'high', scriptSrc: 'https://cdn.example.com/app.min.js', context: "const
+API_KEY='AIzaSyD-example1234567890abcdefghijk';" }, { type: 'JWT Token', value:
+'eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ1c2VyMTIzIn0.abc123', severity: 'high',
+scriptSrc: 'https://cdn.example.com/app.min.js', context: "Authorization:'Bearer
+eyJhbGci...'" }, { type: 'Stripe Key', value:
+'pk_live_abcdefghijklmnopqrstuvwx', severity: 'critical', scriptSrc:
+'https://cdn.example.com/app.min.js', context: "const
+STRIPE_KEY='pk_live_abcdefghijklmnopqrstuvwx'" }, { type: 'AWS Access Key',
+value: 'AKIAIOSFODNN7EXAMPLE', severity: 'critical', scriptSrc:
+'https://cdn.example.com/vendor.js', context: "const
+AWS_KEY='AKIAIOSFODNN7EXAMPLE'" }, { type: 'SendGrid Key', value:
+'SG.abcdefghijk1234567890.ABCDEFGHIJKLMNOPQRSTUVWXYZ12345678901234', severity:
+'high', scriptSrc: 'https://analytics.tracker.io/track.js', context: "const
+SENDGRID='SG.abcde...'" }, { type: 'Client Secret', value:
+'super_secret_client_key_here_12345', severity: 'high', scriptSrc: 'inline',
+context: "clientSecret:'super_secret_client_key_here_12345'" }, { type: 'MongoDB
+URI', value: 'mongodb+srv://admin:password123@cluster.example.mongodb.net/mydb',
+severity: 'critical', scriptSrc: 'https://sub.example.com/utils.js', context:
+"const MONGO='mongodb+srv://admin:password...'" } ]; state.endpoints = [ { path:
+'/api/v1/users', method: 'GET', scriptSrc: 'https://cdn.example.com/app.min.js'
+}, { path: '/api/auth/login', method: 'POST', scriptSrc:
+'https://cdn.example.com/app.min.js' }, { path: '/api/v2/products', method:
+'GET', scriptSrc: 'https://cdn.example.com/vendor.js' }, { path:
+'/api/v2/orders', method: 'GET', scriptSrc: 'https://cdn.example.com/vendor.js'
+}, { path: '/graphql', method: 'POST', scriptSrc:
+'https://cdn.example.com/vendor.js' }, { path: '/api/v1/config', method: 'GET',
+scriptSrc: 'inline' }, { path: '/auth/token', method: 'UNKNOWN', scriptSrc:
+'inline' }, { path: '/api/payment/intent', method: 'POST', scriptSrc:
+'https://cdn.stripe.com/v3/' }, { path: '/api/payment/confirm', method: 'POST',
+scriptSrc: 'https://cdn.stripe.com/v3/' }, { path: '/api/admin/users', method:
+'GET', scriptSrc: 'https://sub.example.com/utils.js' }, { path:
+'/api/admin/logs', method: 'GET', scriptSrc: 'https://sub.example.com/utils.js'
+}, { path: '/api/v1/reports', method: 'GET', scriptSrc:
+'https://sub.example.com/utils.js' } ]; state.network = [ { type: 'fetch', url:
+'/api/v1/users', scriptSrc: 'https://cdn.example.com/app.min.js' }, { type:
+'axios.post', url: '/api/auth/login', scriptSrc:
+'https://cdn.example.com/app.min.js' }, { type: 'axios.get', url:
+'/api/v2/products', scriptSrc: 'https://cdn.example.com/vendor.js' }, { type:
+'axios.get', url: '/api/v2/orders', scriptSrc:
+'https://cdn.example.com/vendor.js' }, { type: 'fetch', url: '/graphql',
+scriptSrc: 'https://cdn.example.com/vendor.js' }, { type: 'fetch', url:
+'https://analytics.tracker.io/collect', scriptSrc:
+'https://analytics.tracker.io/track.js' }, { type: 'fetch', url:
+'/api/payment/intent', scriptSrc: 'https://cdn.stripe.com/v3/' }, { type:
+'XMLHttpRequest', url: '/api/v1/reports', scriptSrc:
+'https://sub.example.com/utils.js' } ]; state.subdomains = [ 'api.example.com',
+'sub.example.com', 'ws.example.com', 'socket.example.com', 'cdn.example.com',
+'admin.example.com', 'auth.example.com' ]; state.websockets = [ { url:
+'wss://ws.example.com/live', scriptSrc: 'https://cdn.example.com/app.min.js' },
+{ url: 'wss://socket.example.com', scriptSrc: 'inline' } ]; state.cors = [ {
+pattern: 'credentials: include', context:
+"fetch('/api/auth/login',{credentials:'include'})", scriptSrc:
+'https://cdn.example.com/app.min.js' }, { pattern: 'mode: cors', context:
+"fetch('https://analytics.tracker.io/collect',{mode:'cors'})", scriptSrc:
+'https://analytics.tracker.io/track.js' }, { pattern: 'withCredentials: true',
+context: "xhr.withCredentials=true;xhr.open('POST','/api/upload')", scriptSrc:
+'https://sub.example.com/utils.js' } ]; state.domains = { 'cdn.example.com':
+[state.scripts[0], state.scripts[1]], 'analytics.tracker.io':
+[state.scripts[2]], 'inline': [state.scripts[3]], 'cdn.stripe.com':
+[state.scripts[4]], 'sub.example.com': [state.scripts[5]] }; state.allCode =
+state.scripts.map(s => s.code).join('\n'); state.scanComplete = true;
+document.getElementById('targetUrl').textContent = 'demo.example.com';
+document.getElementById('statScripts').textContent = state.scripts.length;
+document.getElementById('statSecrets').textContent = state.secrets.length;
+document.getElementById('statEndpoints').textContent = state.endpoints.length;
+document.getElementById('statNetwork').textContent = state.network.length;
+document.getElementById('statSubdomains').textContent = state.subdomains.length;
+document.getElementById('statWS').textContent = state.websockets.length;
+document.getElementById('statCORS').textContent = state.cors.length;
+document.getElementById('statSize').textContent = '325.4KB';
+document.getElementById('scanBtnText').textContent = '🔄 Re-scan';
+renderOverview(); renderScripts(); renderSecrets(); renderEndpoints();
+renderNetwork(); renderSubdomains(); renderDepTree(); renderCORSandWS();
+showToast('🎭 Demo data loaded! Explore all sections.'); } function
+showBookmarklet() { const modal = document.createElement('div');
+modal.style.cssText =
+`position:fixed;inset:0;background:rgba(0,0,0,0.8);z-index:9999;display:flex;align-items:center;justify-content:center;`;
+const inner = document.createElement('div'); inner.style.cssText =
+`background:var(--bg-card);border:1px solid
+var(--border);border-radius:16px;padding:28px;max-width:600px;width:90%;`; const
+bookmarkletCode = `javascript:(()=>{const
+s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/js-beautify@1.15.1/js/lib/beautify.js';document.head.appendChild(s);s.onload=()=>{const
+scripts=[...document.scripts];let html='<style>
+  body {
+    background: #0f172a;
+    color: #e2e8f0;
+    font-family: monospace;
+    padding: 20px;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+  .r {
+    border-bottom: 1px solid #334155;
+    padding: 8px;
+  }
+  button {
+    background: #3b82f6;
+    color: #fff;
+    border: none;
+    padding: 4px 10px;
+    border-radius: 4px;
+    cursor: pointer;
+  }
+</style>
+<h2>JS Recon</h2>
+<table>
+  ';scripts.forEach((s,i)=>{html+='
+  <tr class="r">
+    <td>'+(i+1)+'</td>
+    <td>'+(s.src||'inline')+'</td>
+    <td>'+(new Blob([s.textContent]).size/1024).toFixed(1)+' KB</td>
+  </tr>
+  ';});html+='
+</table>
+';const w=window.open('','_blank');w.document.write(html);};})();`;
+inner.innerHTML = `
+<h5 style="color: var(--text-primary); margin-bottom: 16px">
+  🔖 Bookmarklet Generator
+</h5>
+<p
+  style="color: var(--text-secondary); font-size: 0.88rem; margin-bottom: 16px"
+>
+  Drag the button below to your bookmarks bar, then click it on any page to run
+  a quick JS recon scan.
+</p>
+<div
+  style="
+    background: var(--bg-deep);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px;
+    margin-bottom: 16px;
+  "
+>
+  <div style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 8px">
+    Bookmarklet Code:
+  </div>
+  <div
+    style="
+      font-family: monospace;
+      font-size: 0.72rem;
+      color: var(--accent-cyan);
+      word-break: break-all;
+      max-height: 120px;
+      overflow-y: auto;
+    "
+  >
+    ${escapeHTML(bookmarkletCode)}
+  </div>
+</div>
+<div
+  style="
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    flex-wrap: wrap;
+    margin-bottom: 20px;
+  "
+>
+  <a
+    href="${bookmarkletCode}"
+    style="
+      background: var(--accent-blue);
+      color: white;
+      padding: 10px 20px;
+      border-radius: 8px;
+      text-decoration: none;
+      font-weight: 600;
+      font-size: 0.9rem;
+      border: 2px dashed #60a5fa;
+    "
+  >
+    🔍 JS Recon Tool
+  </a>
+  <span style="color: var(--text-muted); font-size: 0.82rem"
+    >← Drag this to bookmarks bar</span
+  >
+</div>
+<div
+  style="
+    background: rgba(245, 158, 11, 0.1);
+    border: 1px solid rgba(245, 158, 11, 0.3);
+    border-radius: 8px;
+    padding: 12px;
+    margin-bottom: 16px;
+  "
+>
+  <div
+    style="
+      color: var(--accent-yellow);
+      font-size: 0.82rem;
+      font-weight: 600;
+      margin-bottom: 4px;
+    "
+  >
+    ⚠️ Usage Note
+  </div>
+  <div style="color: var(--text-secondary); font-size: 0.8rem">
+    This tool is for authorized security testing only. Always obtain proper
+    permission before scanning any website you do not own.
+  </div>
+</div>
+<div style="display: flex; justify-content: flex-end; gap: 10px">
+  <button
+    class="btn-outline-custom"
+    onclick="
+      navigator.clipboard
+        .writeText('${escapeHTML(bookmarkletCode)}')
+        .then(() => showToast('📋 Bookmarklet copied!'))
+    "
+  >
+    📋 Copy Code
+  </button>
+  <button
+    class="btn-primary-custom"
+    onclick="this.closest('[style*=fixed]').remove()"
+  >
+    Close
+  </button>
+</div>
+`; modal.appendChild(inner); modal.addEventListener('click', e => { if (e.target
+=== modal) modal.remove(); }); document.body.appendChild(modal); } // Keyboard
+shortcuts document.addEventListener('keydown', e => { if (e.ctrlKey ||
+e.metaKey) { switch(e.key) { case '1': e.preventDefault();
+showSection('overview'); break; case '2': e.preventDefault();
+showSection('scripts'); break; case '3': e.preventDefault();
+showSection('secrets'); break; case '4': e.preventDefault();
+showSection('endpoints'); break; case '5': e.preventDefault();
+showSection('network'); break; case '6': e.preventDefault();
+showSection('subdomains'); break; case '7': e.preventDefault();
+showSection('graph'); break; case '8': e.preventDefault();
+showSection('deptree'); break; case '9': e.preventDefault();
+showSection('cors'); break; case 'e': e.preventDefault(); exportResults();
+break; } } if (e.key === 'Escape') { closeViewer();
+document.querySelectorAll('[style*="position:fixed"]').forEach(el =>
+el.remove()); } });
